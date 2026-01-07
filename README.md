@@ -44,12 +44,3 @@ house-price-regression/
   figures/     # output plot (opsional)
 ```
 
----
-
-## Cara menjalankan (opsional)
-Di R / RStudio:
-1. Buka `src/house_price_regression.R`
-2. Pastikan working directory mengarah ke root repo
-3. Jalankan script
-
-> Jika paket belum ada, install dulu via `install.packages("<nama_paket>")`.
