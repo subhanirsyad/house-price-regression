@@ -1,0 +1,44 @@
+{
+  "Square_Footage": {
+    "min": 503.0,
+    "max": 4999.0,
+    "median": 2862.5,
+    "mean": 2815.422
+  },
+  "Num_Bedrooms": {
+    "min": 1.0,
+    "max": 5.0,
+    "median": 3.0,
+    "mean": 2.99
+  },
+  "Num_Bathrooms": {
+    "min": 1.0,
+    "max": 3.0,
+    "median": 2.0,
+    "mean": 1.973
+  },
+  "Year_Built": {
+    "min": 1950.0,
+    "max": 2022.0,
+    "median": 1986.0,
+    "mean": 1986.55
+  },
+  "Lot_Size": {
+    "min": 0.5060582193045366,
+    "max": 4.989302700131234,
+    "median": 2.8097404114588125,
+    "mean": 2.7780874273930225
+  },
+  "Garage_Size": {
+    "min": 0.0,
+    "max": 2.0,
+    "median": 1.0,
+    "mean": 1.022
+  },
+  "Neighborhood_Quality": {
+    "min": 1.0,
+    "max": 10.0,
+    "median": 6.0,
+    "mean": 5.615
+  }
+}

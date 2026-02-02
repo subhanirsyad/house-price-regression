@@ -69,6 +69,21 @@ Output model akan tersimpan ke folder `artifacts/`.
 
 ---
 
+## 🌍 Deploy ke Streamlit Community Cloud (gratis)
+
+1. Upload repo ini ke GitHub (public)
+2. Buka Streamlit Community Cloud → **New app**
+3. Pilih repo + branch
+4. Pada **Main file path**, isi: `app.py`
+5. Klik **Deploy**
+
+Setelah berhasil, aplikasi akan punya link dengan format mirip:
+`https://<streamlit-username>-<repo-name>.streamlit.app`
+
+> Catatan: link final tergantung username Streamlit & nama repo GitHub kamu.
+
+---
+
 ## 📌 Kolom fitur yang dibutuhkan (CSV batch)
 Pastikan CSV batch memiliki kolom berikut:
 - `Square_Footage`
@@ -79,4 +94,11 @@ Pastikan CSV batch memiliki kolom berikut:
 - `Garage_Size`
 - `Neighborhood_Quality`
 
+Aplikasi juga menyediakan tombol **Download CSV template**.
+
+---
+
+## 📝 Kredit & Catatan
+- Dataset pada repo ini digunakan untuk keperluan edukasi/demonstrasi.
+- Kode R asli tetap disertakan di folder `r/` sebagai referensi analisis/statistik.
 
