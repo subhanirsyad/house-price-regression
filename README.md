@@ -1,6 +1,76 @@
-# House Price Regression (R)
+# 🏠 House Price Regression — Streamlit Inference App
 
-Proyek ini memodelkan **harga rumah** menggunakan **regresi linear** di R, berdasarkan fitur:
+Repo ini berisi:
+- **Model regresi harga rumah** (Python / scikit-learn)
+- **Aplikasi inference** menggunakan **Streamlit** (`app.py`) — siap dijalankan lokal maupun deploy
+- Dataset & laporan proyek asli
+
+> Fokus repo ini adalah **deployment/inference** (prediksi) yang rapi untuk GitHub + Streamlit.
+
+---
+
+## ✨ Fitur
+- Form input fitur untuk memprediksi harga rumah (single prediction)
+- **Batch prediction**: upload CSV → download hasil prediksi
+- Menampilkan metrik model (R², MAE, RMSE) + feature importance (indikatif)
+
+---
+
+## 🧱 Struktur Folder
+```
+.
+├─ app.py                      # Streamlit app (inference)
+├─ requirements.txt            # dependency untuk deploy
+├─ artifacts/
+│  ├─ model.joblib             # model terlatih (dipakai app)
+│  ├─ model_metadata.json      # info fitur + metrik
+│  └─ feature_stats.json       # min/max/median (untuk default input)
+├─ src/
+│  └─ train.py                 # script training untuk regenerate model
+├─ data/
+│  └─ house_price_regression_dataset.csv
+├─ report/
+│  └─ report.pdf
+├─ r/
+│  └─ house_price_regression.R # kode R asli (referensi)
+├─ LICENSE
+└─ .gitignore
+```
+
+---
+
+## 🚀 Menjalankan Secara Lokal
+
+### 1) Setup environment
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+source .venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+### 2) Jalankan Streamlit
+```bash
+streamlit run app.py
+```
+Buka URL yang muncul (biasanya `http://localhost:8501`).
+
+---
+
+## 🔁 (Opsional) Training ulang model
+Kalau kamu ingin regenerate model dari dataset:
+
+```bash
+python src/train.py
+```
+
+Output model akan tersimpan ke folder `artifacts/`.
+
+---
+
+## 📌 Kolom fitur yang dibutuhkan (CSV batch)
+Pastikan CSV batch memiliki kolom berikut:
 - `Square_Footage`
 - `Num_Bedrooms`
 - `Num_Bathrooms`
@@ -9,38 +79,4 @@ Proyek ini memodelkan **harga rumah** menggunakan **regresi linear** di R, berda
 - `Garage_Size`
 - `Neighborhood_Quality`
 
-📄 Laporan: [`report/report.pdf`](./report/report.pdf)  
-📁 Dataset: [`data/house_price_regression_dataset.csv`](./data/house_price_regression_dataset.csv)  
-🧠 Kode: [`src/house_price_regression.R`](./src/house_price_regression.R)
-
----
-
-## Metode yang digunakan
-- Analisis deskriptif + visualisasi korelasi
-- Model regresi linear (OLS)
-- **Stepwise regression** (AIC) untuk seleksi variabel (`MASS::stepAIC`)
-- Uji asumsi klasik:
-  - Linearitas (residual plot)
-  - Independensi residual (Durbin–Watson: `car::durbinWatsonTest`)
-  - Homoskedastisitas (Breusch–Pagan: `lmtest::bptest`)
-  - Normalitas residual (Shapiro–Wilk)
-  - Multikolinearitas (VIF: `car::vif`)
-- Validasi model: **10-fold cross-validation** (`caret`)
-
----
-
-## Tools / Packages
-Script memakai beberapa paket berikut:
-`readr`, `corrplot`, `reshape2`, `ggplot2`, `MASS`, `car`, `lmtest`, `performance`, `caret`
-
----
-
-## Struktur Folder
-```
-house-price-regression/
-  data/        # dataset (CSV)
-  src/         # script R
-  report/      # laporan PDF
-  figures/     # output plot (opsional)
-```
 
