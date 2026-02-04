@@ -8,19 +8,26 @@ import joblib
 import pandas as pd
 import streamlit as st
 
+# --- KONFIGURASI PATH ---
 APP_DIR = Path(__file__).resolve().parent
 ARTIFACTS_DIR = APP_DIR / "artifacts"
+DATA_DIR = APP_DIR / "data"
 
 MODEL_PATH = ARTIFACTS_DIR / "model.joblib"
 META_PATH = ARTIFACTS_DIR / "model_metadata.json"
 STATS_PATH = ARTIFACTS_DIR / "feature_stats.json"
 
 
+# --- FUNGSI UTILITAS ---
+def format_currency(x: float) -> str:
+    """Format angka menjadi gaya mata uang atau angka yang mudah dibaca."""
+    return f"{x:,.0f}"
+
 @st.cache_resource
 def load_artifacts():
     """
-    Load model + metadata from artifacts.
-    If loading fails (e.g., version mismatch), train a fresh model from the bundled dataset.
+    Memuat model + metadata dari folder artifacts.
+    Jika gagal (misal file tidak ada), melatih ulang model dari dataset bawaan.
     """
     try:
         model = joblib.load(MODEL_PATH)
@@ -28,16 +35,25 @@ def load_artifacts():
         stats = json.loads(STATS_PATH.read_text(encoding="utf-8"))
         return model, meta, stats
     except Exception as e:
-        st.warning(f"Gagal memuat model artifact ({type(e).__name__}). Melatih ulang model dari dataset...")
+        st.warning(f"⚠️ Artifact model tidak ditemukan atau rusak ({type(e).__name__}). Melatih ulang model...")
+        
+        # Cek apakah dataset tersedia
+        data_csv = DATA_DIR / "house_price_regression_dataset.csv"
+        if not data_csv.exists():
+            st.error("❌ Dataset tidak ditemukan di folder 'data'. Pastikan file CSV tersedia untuk pelatihan ulang.")
+            st.stop()
+
+        # Import library hanya jika diperlukan training
         from sklearn.ensemble import RandomForestRegressor
         from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
         from sklearn.model_selection import train_test_split
 
-        data_csv = APP_DIR / "data" / "house_price_regression_dataset.csv"
         df = pd.read_csv(data_csv)
 
         target = "House_Price"
-        features = [c for c in df.columns if c != target]
+        # Ambil kolom numerik saja sebagai fitur sederhana
+        features = [c for c in df.columns if c != target and pd.api.types.is_numeric_dtype(df[c])]
+        
         X = df[features]
         y = df[target]
 
@@ -46,7 +62,7 @@ def load_artifacts():
         )
 
         model = RandomForestRegressor(
-            n_estimators=400,
+            n_estimators=200,
             random_state=42,
             n_jobs=-1,
             min_samples_leaf=2,
@@ -80,7 +96,7 @@ def load_artifacts():
                 "mean": float(s.mean()),
             }
 
-        # Best-effort: persist new artifacts
+        # Simpan artifact untuk penggunaan berikutnya
         try:
             ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
             joblib.dump(model, MODEL_PATH)
@@ -90,136 +106,195 @@ def load_artifacts():
             pass
 
         return model, meta, stats
-def format_number(x: float) -> str:
-    # Avoid assuming any currency; just format a readable number.
-    return f"{x:,.0f}"
 
-
+# --- HALAMAN UTAMA ---
 def main():
     st.set_page_config(
-        page_title="House Price Prediction",
+        page_title="Estimasi Harga Rumah",
         page_icon="🏠",
         layout="wide",
+        initial_sidebar_state="expanded"
     )
 
-    st.title("🏠 House Price Prediction (Regression)")
-    st.caption(
-        "Aplikasi inference sederhana berbasis Streamlit untuk memprediksi harga rumah dari fitur numerik."
-    )
+    # Custom CSS untuk mempercantik
+    st.markdown("""
+        <style>
+        .big-font { font-size: 24px !important; font-weight: bold; }
+        .metric-card { background-color: #f0f2f6; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; }
+        </style>
+    """, unsafe_allow_html=True)
 
-    with st.spinner("Memuat model..."):
+    # --- SIDEBAR ---
+    with st.sidebar:
+        st.header("🏠 House Price AI")
+        st.markdown("Aplikasi cerdas untuk estimasi nilai properti.")
+        st.info(
+            "**Tentang Aplikasi:**\n"
+            "Model ini dilatih menggunakan algoritma *Random Forest Regression*. "
+            "Data yang digunakan mencakup fitur fisik bangunan dan lokasi."
+        )
+        st.caption("v1.0.0 | Dibuat dengan Streamlit")
+
+    # --- HEADER & PENDAHULUAN ---
+    st.title("🏠 Prediksi Harga Rumah")
+    
+    with st.expander("📖 Baca Pendahuluan & Cara Penggunaan", expanded=True):
+        st.markdown("""
+        ### Selamat Datang!
+        Aplikasi ini dirancang untuk membantu Anda **memperkirakan harga pasar rumah** berdasarkan spesifikasi properti.
+        
+        **Cara Menggunakan:**
+        1.  **Tab Prediksi Cepat:** Masukkan detail rumah (jumlah kamar, luas, tahun dibangun, dll) secara manual untuk mendapatkan estimasi instan.
+        2.  **Tab Batch CSV:** Jika Anda agen properti atau analis, upload file CSV berisi banyak data rumah untuk mendapatkan prediksi sekaligus.
+        3.  **Tab Model Info:** Lihat seberapa akurat model ini dan faktor apa saja yang paling mempengaruhi harga.
+        
+        > *Catatan: Hasil prediksi adalah estimasi statistik berdasarkan data historis, bukan penilaian appraisal resmi.*
+        """)
+
+    # Load Model
+    with st.spinner("Sedang memuat model kecerdasan buatan..."):
         model, meta, stats = load_artifacts()
 
     features = meta["features"]
     target = meta.get("target", "House_Price")
 
-    left, right = st.columns([1, 1], gap="large")
+    # --- TABS NAVIGASI ---
+    tab1, tab2, tab3 = st.tabs(["🔍 Prediksi Cepat", "📂 Batch Upload (CSV)", "📊 Info Model"])
 
-    with left:
-        st.subheader("Input fitur")
-        st.write("Isi nilai fitur di bawah, lalu klik **Prediksi**.")
+    # --- TAB 1: PREDIKSI SATUAN ---
+    with tab1:
+        st.subheader("Simulasi Harga Properti")
+        st.markdown("Sesuaikan parameter di bawah ini dengan kondisi rumah.")
 
-        with st.form("predict_form", clear_on_submit=False):
-            # Build inputs using dataset-derived ranges and medians (stored in feature_stats.json)
+        with st.form("predict_form"):
+            # Menggunakan Grid Layout (2 Kolom) agar form tidak terlalu panjang
+            cols = st.columns(2)
             inputs = {}
-            for f in features:
+            
+            for i, f in enumerate(features):
+                col = cols[i % 2] # Ganti kolom kiri/kanan
+                
                 f_stats = stats.get(f, {})
                 vmin = f_stats.get("min", 0.0)
-                vmax = f_stats.get("max", 1.0)
+                vmax = f_stats.get("max", 1000.0)
                 vmed = f_stats.get("median", (vmin + vmax) / 2)
 
-                # Pick sensible step sizes (integers for count-like features)
-                is_int_like = f in {"Num_Bedrooms", "Num_Bathrooms", "Year_Built", "Garage_Size", "Neighborhood_Quality"}
-                step = 1 if is_int_like else (vmax - vmin) / 100 if vmax != vmin else 0.01
+                # Logika step size agar input lebih nyaman
+                is_int_like = f in {"Num_Bedrooms", "Num_Bathrooms", "Year_Built", "Garage_Size", "Neighborhood_Quality", "Overall_Condition"}
+                step = 1.0 if is_int_like else (vmax - vmin) / 100
+                if step == 0: step = 0.1
 
-                inputs[f] = st.number_input(
-                    label=f,
-                    min_value=float(vmin),
-                    max_value=float(vmax),
-                    value=float(vmed),
-                    step=float(step) if step else 1.0,
-                    help=f"Rentang data: {vmin:.3g} sampai {vmax:.3g}. Default: median ({vmed:.3g}).",
-                )
+                with col:
+                    inputs[f] = st.number_input(
+                        label=f.replace("_", " ").title(), # Mempercantik label (e.g., Num_Bedrooms -> Num Bedrooms)
+                        min_value=float(vmin),
+                        max_value=float(vmax),
+                        value=float(vmed),
+                        step=float(step),
+                        help=f"Min: {vmin} | Max: {vmax}"
+                    )
 
-            submitted = st.form_submit_button("🔮 Prediksi")
+            st.markdown("---")
+            submitted = st.form_submit_button("🔮 Hitung Estimasi Harga", use_container_width=True, type="primary")
 
         if submitted:
             row = pd.DataFrame([inputs], columns=features)
             pred = float(model.predict(row)[0])
-            st.success("Prediksi berhasil dibuat.")
-            st.metric(label=f"Prediksi {target}", value=format_number(pred))
+            
+            st.markdown("### Hasil Analisis")
+            c_res1, c_res2 = st.columns([2, 1])
+            
+            with c_res1:
+                st.success("Kalkulasi Selesai!")
+                st.metric(
+                    label="Estimasi Harga Jual", 
+                    value=f"IDR {format_currency(pred)}", 
+                    delta="Berdasarkan data pasar"
+                )
+            with c_res2:
+                with st.expander("Lihat Data Input"):
+                    st.dataframe(row.T, use_container_width=True)
 
-            with st.expander("Lihat input yang dipakai", expanded=False):
-                st.dataframe(row, use_container_width=True)
+    # --- TAB 2: BATCH PREDICTION ---
+    with tab2:
+        st.subheader("Analisis Massal (Batch Processing)")
+        st.markdown("Upload file CSV berisi daftar rumah untuk diprediksi sekaligus.")
 
-    with right:
-        st.subheader("Info model")
-        st.write(
-            f"**Model:** {meta.get('model_type','-')}  \n"
-            f"**Fitur:** {len(features)}  \n"
-            f"**Target:** `{target}`"
-        )
+        # Download Template
+        col_dl, col_ul = st.columns([1, 2])
+        with col_dl:
+            st.markdown("**1. Download Template**")
+            template = pd.DataFrame([{f: stats.get(f, {}).get("median", 0) for f in features}])
+            template_buf = io.StringIO()
+            template.to_csv(template_buf, index=False)
+            st.download_button(
+                "⬇️ Download Template CSV",
+                data=template_buf.getvalue().encode("utf-8"),
+                file_name="template_rumah.csv",
+                mime="text/csv",
+            )
 
-        m = meta.get("metrics", {})
-        if m:
-            c1, c2, c3 = st.columns(3)
-            c1.metric("R² (test)", f"{m.get('R2', 0):.4f}")
-            c2.metric("MAE (test)", format_number(float(m.get('MAE', 0))))
-            c3.metric("RMSE (test)", format_number(float(m.get('RMSE', 0))))
+        with col_ul:
+            st.markdown("**2. Upload Data**")
+            uploaded = st.file_uploader("Drop file CSV di sini", type=["csv"])
 
-        # Feature importance (if available)
-        if hasattr(model, "feature_importances_"):
-            imp = pd.DataFrame(
-                {"feature": features, "importance": model.feature_importances_}
-            ).sort_values("importance", ascending=False)
-            st.markdown("**Feature importance (indikatif)**")
-            st.dataframe(imp, use_container_width=True)
-
-        st.divider()
-        st.subheader("Batch prediction (CSV)")
-        st.write(
-            "Upload file CSV dengan kolom fitur yang sama seperti input di kiri. "
-            "Aplikasi akan menambahkan kolom prediksi dan kamu bisa download hasilnya."
-        )
-
-        # Download a template
-        template = pd.DataFrame([{f: stats.get(f, {}).get("median", 0) for f in features}])
-        template_buf = io.StringIO()
-        template.to_csv(template_buf, index=False)
-        st.download_button(
-            "⬇️ Download CSV template",
-            data=template_buf.getvalue().encode("utf-8"),
-            file_name="template_house_features.csv",
-            mime="text/csv",
-        )
-
-        uploaded = st.file_uploader("Upload CSV untuk batch prediction", type=["csv"])
         if uploaded is not None:
             batch = pd.read_csv(uploaded)
             missing = [c for c in features if c not in batch.columns]
+            
             if missing:
-                st.error(f"Kolom berikut wajib ada tapi belum ditemukan: {missing}")
+                st.error(f"❌ Format CSV salah. Kolom berikut hilang: {', '.join(missing)}")
             else:
-                preds = model.predict(batch[features])
-                out = batch.copy()
-                out[target + "_Predicted"] = preds
-                st.success(f"Sukses memproses {len(out)} baris.")
-                st.dataframe(out.head(50), use_container_width=True)
+                try:
+                    preds = model.predict(batch[features])
+                    out = batch.copy()
+                    out[f"Prediksi_{target}"] = preds
+                    
+                    st.divider()
+                    st.success(f"✅ Berhasil memproses {len(out)} data properti.")
+                    
+                    # Tampilkan Preview
+                    st.dataframe(out.head(), use_container_width=True)
 
-                out_buf = io.StringIO()
-                out.to_csv(out_buf, index=False)
-                st.download_button(
-                    "⬇️ Download hasil prediksi",
-                    data=out_buf.getvalue().encode("utf-8"),
-                    file_name="house_price_predictions.csv",
-                    mime="text/csv",
-                )
+                    # Download Hasil
+                    out_buf = io.StringIO()
+                    out.to_csv(out_buf, index=False)
+                    st.download_button(
+                        "⬇️ Download Hasil Prediksi Full",
+                        data=out_buf.getvalue().encode("utf-8"),
+                        file_name="hasil_prediksi_rumah.csv",
+                        mime="text/csv",
+                        type="primary"
+                    )
+                except Exception as e:
+                    st.error(f"Terjadi kesalahan saat memproses data: {e}")
 
-    st.divider()
-    st.caption(
-        "Catatan: prediksi mengikuti pola dataset yang tersedia pada repo ini; gunakan untuk edukasi/demonstrasi."
-    )
+    # --- TAB 3: INFO MODEL ---
+    with tab3:
+        st.subheader("Kinerja & Statistik Model")
+        
+        m = meta.get("metrics", {})
+        c1, c2, c3 = st.columns(3)
+        
+        with c1:
+            st.metric("R² Score (Akurasi)", f"{m.get('R2', 0):.2%}", help="Semakin mendekati 100%, semakin akurat model menjelaskan variasi data.")
+        with c2:
+            st.metric("Mean Absolute Error", format_currency(float(m.get('MAE', 0))), help="Rata-rata kesalahan prediksi dalam satuan harga.")
+        with c3:
+            st.metric("RMSE", format_currency(float(m.get('RMSE', 0))))
 
+        st.divider()
+        
+        # Feature Importance
+        if hasattr(model, "feature_importances_"):
+            st.markdown("#### Faktor Penentu Harga")
+            st.caption("Grafik ini menunjukkan fitur mana yang paling berpengaruh terhadap harga rumah menurut model.")
+            
+            imp = pd.DataFrame(
+                {"Fitur": features, "Kepentingan": model.feature_importances_}
+            ).sort_values("Kepentingan", ascending=True) # Ascending for bar chart
+            
+            st.bar_chart(imp.set_index("Fitur"), color="#4F8BF9", horizontal=True)
 
 if __name__ == "__main__":
     main()
